@@ -5,6 +5,8 @@ MODEL=${1:-}
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 WORK_DIR="$ROOT_DIR/action_build"
 FIRMWARE_DIR="$ROOT_DIR/firmware"
+export CCACHE_DIR="${CCACHE_DIR:-$ROOT_DIR/.ccache}"
+mkdir -p "$CCACHE_DIR"
 REPO_URL=${REPO_URL:-https://github.com/openwrt/openwrt.git}
 REPO_BRANCH=${REPO_BRANCH:-v25.12.5}
 
@@ -68,8 +70,30 @@ EOF_CFG
 }
 
 
-rm -rf "$WORK_DIR" "$FIRMWARE_DIR"
-retry git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "$WORK_DIR"
+prepare_workdir() {
+  local keep
+  keep=$(mktemp -d)
+  rm -rf "$FIRMWARE_DIR"
+
+  # Preserve restored GitHub cache directories before recloning into action_build.
+  [ -d "$WORK_DIR/dl" ] && mv "$WORK_DIR/dl" "$keep/dl"
+  [ -d "$WORK_DIR/staging_dir" ] && mv "$WORK_DIR/staging_dir" "$keep/staging_dir"
+
+  if [ -d "$WORK_DIR/.git" ]; then
+    retry git -C "$WORK_DIR" fetch --depth 1 origin "$REPO_BRANCH"
+    git -C "$WORK_DIR" reset --hard FETCH_HEAD || git -C "$WORK_DIR" reset --hard "$REPO_BRANCH"
+    git -C "$WORK_DIR" clean -ffd -e dl -e staging_dir
+  else
+    rm -rf "$WORK_DIR"
+    retry git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "$WORK_DIR"
+  fi
+
+  [ -d "$keep/dl" ] && rm -rf "$WORK_DIR/dl" && mv "$keep/dl" "$WORK_DIR/dl"
+  [ -d "$keep/staging_dir" ] && rm -rf "$WORK_DIR/staging_dir" && mv "$keep/staging_dir" "$WORK_DIR/staging_dir"
+  rm -rf "$keep"
+}
+
+prepare_workdir
 cd "$WORK_DIR"
 setup_kernel_6_18
 
@@ -104,6 +128,9 @@ cp -f "$CONFIG_FILE" .config
 for extra in compile_base docker_deps proxy; do
   [ -f "$ROOT_DIR/wrt_core/deconfig/${extra}.config" ] && cat "$ROOT_DIR/wrt_core/deconfig/${extra}.config" >> .config
 done
+
+# Speed up repeat GitHub Actions builds.
+grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
 "$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig

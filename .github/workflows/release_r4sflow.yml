@@ -35,8 +35,38 @@ jobs:
       - name: Grant execute permission
         run: find . -name "*.sh" -exec chmod +x {} \;
 
+      - name: Cache downloads and build state
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ccache
+            action_build/dl
+            action_build/staging_dir
+          key: r4sflow-${{ runner.os }}-${{ inputs.model }}-${{ hashFiles('r4sflow/**', 'wrt_core/patches/install_refind_sing_box.sh') }}
+          restore-keys: |
+            r4sflow-${{ runner.os }}-${{ inputs.model }}-
+
+      - name: Refresh restored cache stamps
+        run: |
+          if [ -d "./action_build/staging_dir" ]; then
+            find "./action_build/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
+              find "$dir" -type f -exec touch {} +
+            done
+          fi
+
       - name: Build Firmware
         run: ./r4sflow/build.sh ${{ inputs.model }}
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r4sflow-${{ inputs.model }}-failure-logs
+          path: |
+            action_build/logs/**
+            action_build/.config
+            action_build/tmp/.config-package.in
+          if-no-files-found: ignore
 
       - name: Kernel Version
         if: success()
