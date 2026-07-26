@@ -52,6 +52,7 @@ for extra in compile_base docker_deps proxy; do
   [ -f "$ROOT_DIR/wrt_core/deconfig/${extra}.config" ] && cat "$ROOT_DIR/wrt_core/deconfig/${extra}.config" >> .config
 done
 
+"$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig
 make download -j"$(nproc)"
 make -j"$(($(nproc)+1))" || make -j1 V=s

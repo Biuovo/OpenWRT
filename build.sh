@@ -311,6 +311,7 @@ case "$Dev" in
 esac
 
 cd "$BASE_PATH/../$BUILD_DIR"
+"$BASE_PATH/patches/install_refind_sing_box.sh" "$BASE_PATH/../$BUILD_DIR" "$Dev"
 make defconfig
 
 if grep -qE "^CONFIG_TARGET_x86_64=y" "$CONFIG_FILE"; then
