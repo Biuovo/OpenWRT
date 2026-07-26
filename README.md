@@ -1,4 +1,3 @@
-![alt text](tu.png)
 # 编译指南
 
 ## 1. 环境准备
@@ -31,19 +30,13 @@ sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_e
 
 ### 京东云
 
-*   **雅典娜(02)、亚瑟(01)、太乙(07)、AX5(JDC版)**:
+*   **太乙(07)**:
     ```bash
     ./build.sh jdcloud_ipq60xx_libwrt
-    ./build.sh jdcloud_ipq60xx_lede
     ./build.sh jdcloud_ipq60xx_immwrt
     ```
-*   **百里**:
-    ```bash
-    ./build.sh jdcloud_ax6000_immwrt
-    ```
 
-
-### 其他
+### **友善**:
 
 *   **NanoPi R76S**:
     ```bash
