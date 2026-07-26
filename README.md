@@ -1,4 +1,4 @@
-太乙(RE-CS-07)、NanoPi R76、x86
+太乙(RE-CS-07)、NanoPi R76S、x86
 
 三方插件源自：[https://github.com/kenzok8/small-package.git](https://github.com/kenzok8/small-package.git)
 项目结构说明
