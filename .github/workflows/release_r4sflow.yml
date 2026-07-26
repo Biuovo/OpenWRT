@@ -47,16 +47,16 @@ jobs:
         if: success()
         run: |
           PLUGINS=$(grep -h -oP 'luci-app(-[a-zA-Z0-9]{1,}){1,}' ./firmware/*.manifest 2>/dev/null | sort -u | paste - - - | awk '{printf "%-28s %-28s %-28s\n",$1,$2,$3}')
-          cat > release_body.txt <<EOF_BODY
-          **R4SFlow OpenWrt Firmware for ${{ inputs.model }}**
-          - Kernel: ${{ env.KVER }}
-          - LAN IP: 192.168.100.1
-
-          Plugins:
-          \`\`\`
-          $PLUGINS
-          \`\`\`
-EOF_BODY
+          {
+            echo "**R4SFlow OpenWrt Firmware for ${{ inputs.model }}**"
+            echo "- Kernel: ${{ env.KVER }}"
+            echo "- LAN IP: 192.168.100.1"
+            echo ""
+            echo "Plugins:"
+            echo '```'
+            echo "$PLUGINS"
+            echo '```'
+          } > release_body.txt
 
       - name: Release Firmware
         if: success()
