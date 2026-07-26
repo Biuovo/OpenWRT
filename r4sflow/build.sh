@@ -108,6 +108,13 @@ retry ./scripts/feeds update -a
 ./scripts/feeds install -a -f
 mkdir -p package/custom
 
+# Reuse openwrt_release fixes required by Linux 6.18 netfilter packaging.
+BASE_PATH="$ROOT_DIR/wrt_core"
+BUILD_DIR="$WORK_DIR"
+source "$ROOT_DIR/wrt_core/modules/system.sh"
+fix_netfilter_kmod_clash
+fix_opkg_check
+
 # Argon theme/config: repo is not a standard feed; copy packages explicitly.
 TMP_ARGON=$(mktemp -d)
 if retry git clone --depth 1 https://github.com/sbwml/luci-theme-argon.git "$TMP_ARGON"; then
