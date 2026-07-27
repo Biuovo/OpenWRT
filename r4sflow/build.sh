@@ -140,6 +140,8 @@ done
 # Speed up repeat GitHub Actions builds.
 grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
+install -Dm755 "$ROOT_DIR/r4sflow/files/99-r4sflow-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-r4sflow-defaults"
+
 "$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig
 make download -j"$(nproc)"
