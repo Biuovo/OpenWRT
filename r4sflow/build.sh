@@ -100,6 +100,7 @@ setup_kernel_6_18
 # Extra feeds/packages aligned with openwrt_release plugin set.
 cat >> feeds.conf.default <<'EOF_FEEDS'
 src-git openwrt_pkgs https://github.com/sbwml/openwrt_pkgs.git;main
+src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main
 src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main
 src-git openlist2 https://github.com/sbwml/luci-app-openlist2.git;main
 EOF_FEEDS
