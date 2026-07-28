@@ -16,7 +16,7 @@ remove_unwanted_packages() {
     )
 
     case "$BUILD_MODEL" in
-        r76s_immwrt|r76s_lede)
+        r76s_immwrt)
             # R76S does not include AdGuardHome.
             luci_packages+=("luci-app-adguardhome")
             packages_net+=("adguardhome")
@@ -170,7 +170,7 @@ install_custom_feed() {
     local repo_package_array=()
 
     case "$BUILD_MODEL" in
-        r76s_immwrt|r76s_lede)
+        r76s_immwrt)
             required_feed_dirs=(
                 luci-app-netspeedtest speedtest-cli
                 luci-app-store luci-lib-taskd luci-lib-xterm taskd
@@ -286,7 +286,7 @@ install_custom_feed() {
 
 verify_custom_feed_installed_paths() {
     case "$BUILD_MODEL" in
-        r76s_immwrt|r76s_lede|x64_immwrt)
+        r76s_immwrt|x64_immwrt)
             return 0
             ;;
     esac

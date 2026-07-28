@@ -26,9 +26,7 @@ jobs:
         os: [ubuntu-24.04]
         model: [
           'jdcloud_ipq60xx_libwrt',
-          'jdcloud_ipq60xx_lede',
           'r76s_immwrt',
-          'r76s_lede',
           'x64_immwrt'
         ]
     runs-on: ${{ matrix.os }}

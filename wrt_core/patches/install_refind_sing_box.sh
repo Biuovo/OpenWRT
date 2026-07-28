@@ -5,7 +5,7 @@ BUILD_DIR=${1:?build dir required}
 MODEL=${2:?model required}
 
 case "$MODEL" in
-  r76s|r76s_immwrt|r76s_lede) REFIND_ARCH="arm64" ;;
+  r76s|r76s_immwrt) REFIND_ARCH="arm64" ;;
   x64|x64_immwrt) REFIND_ARCH="amd64" ;;
   *)
     if grep -q '^CONFIG_TARGET_x86_64=y' "$BUILD_DIR/.config" 2>/dev/null; then

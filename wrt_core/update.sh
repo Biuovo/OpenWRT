@@ -82,7 +82,7 @@ main() {
     update_smartdns
     update_diskman
     case "$BUILD_MODEL" in
-        jdcloud_ipq60xx_lede|r76s_immwrt|r76s_lede|x64_immwrt) ;;
+        r76s_immwrt|x64_immwrt) ;;
         *) update_dockerman ;;
     esac
     set_nginx_default_config
@@ -100,12 +100,12 @@ main() {
     install_feeds
     verify_custom_feed_installed_paths
     case "$BUILD_MODEL" in
-        jdcloud_ipq60xx_lede|r76s_immwrt|r76s_lede|x64_immwrt) ;;
+        r76s_immwrt|x64_immwrt) ;;
         *) docker_stack_sync_nftables_compat "$BUILD_DIR" "0" ;;
     esac
     fix_easytier_lua
     case "$BUILD_MODEL" in
-        r76s_immwrt|r76s_lede) ;;
+        r76s_immwrt) ;;
         *) update_adguardhome ;;
     esac
     update_script_priority
@@ -119,58 +119,5 @@ main() {
     # apply_hash_fixes
 }
 
-main_lede_append_feed() {
-    local feeds_path="$1"
-    local feed_name="$2"
-    local feed_entry="$3"
+main "$@"
 
-    sed -i "/[[:space:]]${feed_name}[[:space:]]/d" "$feeds_path"
-    [ -z "$(tail -c 1 "$feeds_path")" ] || echo "" >>"$feeds_path"
-    echo "$feed_entry" >>"$feeds_path"
-}
-
-main_lede() {
-    local feeds_path
-    local distfeeds_path
-
-    clone_repo
-    clean_up
-    reset_feeds_conf
-
-    feeds_path=$(get_feeds_path)
-    case "$BUILD_MODEL" in
-        jdcloud_ipq60xx_lede)
-            "$BASE_PATH/patches/997_port_imm_full_nss.sh" "$BUILD_DIR"
-            main_lede_append_feed "$feeds_path" "momo" "src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main"
-            main_lede_append_feed "$feeds_path" "openlist2" "src-git openlist2 https://github.com/sbwml/luci-app-openlist2.git;main"
-            main_lede_append_feed "$feeds_path" "netspeedtest" "src-git netspeedtest https://github.com/sbwml/openwrt_pkgs.git;main"
-            ;;
-        r76s_lede)
-            main_lede_append_feed "$feeds_path" "momo" "src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main"
-            main_lede_append_feed "$feeds_path" "openlist2" "src-git openlist2 https://github.com/sbwml/luci-app-openlist2.git;main"
-            main_lede_append_feed "$feeds_path" "netspeedtest" "src-git netspeedtest https://github.com/sbwml/openwrt_pkgs.git;main"
-            ;;
-    esac
-
-    network_retry ./scripts/feeds update -a
-    ./scripts/feeds install -a -f
-
-    update_diskman
-    update_argon
-    update_argon_config
-
-    # These feeds are build-time sources only; do not publish invalid runtime URLs.
-    distfeeds_path="$BUILD_DIR/package/emortal/default-settings/files/99-distfeeds.conf"
-    if [ -f "$distfeeds_path" ]; then
-        sed -i '/nikki\|momo\|tailscale_community\|openlist2/d' "$distfeeds_path"
-    fi
-}
-
-case "$BUILD_MODEL" in
-    jdcloud_ipq60xx_lede|r76s_lede)
-        main_lede "$@"
-        ;;
-    *)
-        main "$@"
-        ;;
-esac

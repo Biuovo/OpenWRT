@@ -178,15 +178,7 @@ remove_uhttpd_dependency() {
 apply_config() {
     \cp -f "$CONFIG_FILE" "$BASE_PATH/../$BUILD_DIR/.config"
 
-    case "$Dev" in
-        jdcloud_ipq60xx_lede|r76s_lede)
-            # LEDE builds use upstream defaults and only the options in their own config.
-            return
-            ;;
-    esac
-    
     if grep -qE "(ipq60xx|ipq807x)" "$BASE_PATH/../$BUILD_DIR/.config" &&
-        [[ "$Dev" != "jdcloud_ipq60xx_lede" ]] &&
         ! grep -q "CONFIG_GIT_MIRROR" "$BASE_PATH/../$BUILD_DIR/.config"; then
         cat "$BASE_PATH/deconfig/nss.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
     fi
@@ -238,17 +230,10 @@ replace_banner() {
 apply_r76s_dockerd_defaults() {
     local dockerd_source="$BASE_PATH/patches/993_r76s_dockerd_no_iptables"
     local fq_source="$BASE_PATH/patches/994_r76s_default_fq"
-    local er1_nss_source="$BASE_PATH/patches/995_er1_lede_nss_offload_defaults"
     local defaults_dir="$BASE_PATH/../$BUILD_DIR/package/base-files/files/etc/uci-defaults"
 
     case "$Dev" in
-        jdcloud_ipq60xx_lede)
-            if [[ -f "$er1_nss_source" ]]; then
-                install -Dm755 "$er1_nss_source" "$defaults_dir/995_er1_lede_nss_offload_defaults"
-                echo "Applied ER1 LEDE NSS/offload defaults."
-            fi
-            ;;
-        r76s_immwrt|r76s_lede)
+        r76s_immwrt)
             if [[ -f "$dockerd_source" ]]; then
                 install -Dm755 "$dockerd_source" "$defaults_dir/993_r76s_dockerd_no_iptables"
                 echo "Applied R76S dockerd no-iptables defaults."
@@ -261,14 +246,6 @@ apply_r76s_dockerd_defaults() {
     esac
 }
 
-sanitize_lede_runtime_feeds() {
-    case "$Dev" in
-        jdcloud_ipq60xx_lede|r76s_lede)
-            find "$BASE_PATH/../$BUILD_DIR" -type f \( -name '99-distfeeds.conf' -o -name 'distfeeds.conf' \) -exec sed -i \
-                '/\/(momo\|nikki\|openlist2\|tailscale_community)\//d' {} + 2>/dev/null || true
-            ;;
-    esac
-}
 
 REPO_URL=$(read_ini_by_key "REPO_URL")
 REPO_BRANCH=$(read_ini_by_key "REPO_BRANCH")
@@ -282,7 +259,6 @@ if [[ -d action_build ]]; then
 fi
 
 "$BASE_PATH/update.sh" "$REPO_URL" "$REPO_BRANCH" "$BUILD_DIR" "$COMMIT_HASH" "$Dev"
-sanitize_lede_runtime_feeds
 
 if [[ "$Dev" == "jdcloud_ipq60xx_immwrt" || "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_immwrt" ]]; then
     mkdir -p "$BASE_PATH/../$BUILD_DIR/package/base-files/files/etc/sysctl.d"
@@ -303,7 +279,6 @@ apply_config
 apply_r76s_dockerd_defaults
 
 case "$Dev" in
-    jdcloud_ipq60xx_lede|r76s_lede) ;;
     *)
         remove_uhttpd_dependency
         replace_banner
@@ -341,7 +316,7 @@ copy_firmware_artifacts() {
         x64_immwrt)
             find "$TARGET_DIR" -type f \( -name "*squashfs-combined-efi.img.gz" -o -name "*.manifest" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
             ;;
-        r76s_immwrt|r76s_lede)
+        r76s_immwrt)
             find "$TARGET_DIR" -type f \( -name "*squashfs-*.img.gz" -o -name "*.manifest" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
             ;;
         *)

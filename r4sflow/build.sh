@@ -18,57 +18,6 @@ esac
 
 retry() { local n=0; until "$@"; do n=$((n+1)); [ "$n" -ge 5 ] && return 1; sleep $((n*5)); done; }
 
-setup_kernel_6_18() {
-  local tmp
-  tmp=$(mktemp -d)
-  echo "Switching $MODEL r4sflow kernel tree to OpenWrt master 6.18..."
-  retry git clone --depth 1 --filter=blob:none --sparse https://github.com/openwrt/openwrt.git "$tmp"
-  retry git -C "$tmp" sparse-checkout set target/linux/generic package/kernel
-  case "$MODEL" in
-    r76s) retry git -C "$tmp" sparse-checkout add target/linux/rockchip ;;
-    x64) retry git -C "$tmp" sparse-checkout add target/linux/x86 ;;
-  esac
-  rm -rf target/linux/generic package/kernel
-  cp -a "$tmp/target/linux/generic" target/linux/generic
-  cp -a "$tmp/package/kernel" package/kernel
-  case "$MODEL" in
-    r76s)
-      rm -rf target/linux/rockchip
-      cp -a "$tmp/target/linux/rockchip" target/linux/rockchip
-      ;;
-    x64)
-      rm -rf target/linux/x86
-      cp -a "$tmp/target/linux/x86" target/linux/x86
-      # Keep Linux 6.18 x86_64 kernel config non-interactive.
-      local cfg="target/linux/x86/64/config-6.18"
-      if [ -f "$cfg" ]; then
-        sed -i \
-          -e '/^CONFIG_NR_CPUS=/d' \
-          -e '/^CONFIG_NR_CPUS_DEFAULT=/d' \
-          -e '/^CONFIG_NR_CPUS_RANGE_BEGIN=/d' \
-          -e '/^CONFIG_NR_CPUS_RANGE_END=/d' \
-          -e '/^CONFIG_MAXSMP=/d' \
-          -e '/^# CONFIG_MAXSMP is not set/d' \
-          -e '/^CONFIG_X86_POSTED_MSI=/d' \
-          -e '/^# CONFIG_X86_POSTED_MSI is not set/d' \
-          -e '/^CONFIG_X86_CPU_RESCTRL=/d' \
-          -e '/^# CONFIG_X86_CPU_RESCTRL is not set/d' \
-          "$cfg"
-        cat >> "$cfg" <<'EOF_CFG'
-# CONFIG_MAXSMP is not set
-# CONFIG_X86_POSTED_MSI is not set
-# CONFIG_X86_CPU_RESCTRL is not set
-CONFIG_NR_CPUS=64
-CONFIG_NR_CPUS_DEFAULT=64
-CONFIG_NR_CPUS_RANGE_BEGIN=2
-CONFIG_NR_CPUS_RANGE_END=512
-EOF_CFG
-      fi
-      ;;
-  esac
-  rm -rf "$tmp"
-}
-
 
 prepare_workdir() {
   local keep
@@ -95,7 +44,7 @@ prepare_workdir() {
 
 prepare_workdir
 cd "$WORK_DIR"
-setup_kernel_6_18
+# Keep the official OpenWrt release kernel so distfeeds/kmods match and opkg can update/install packages.
 
 # Extra feeds/packages aligned with openwrt_release plugin set.
 cat >> feeds.conf.default <<'EOF_FEEDS'
@@ -109,11 +58,10 @@ retry ./scripts/feeds update -a
 ./scripts/feeds install -a -f
 mkdir -p package/custom
 
-# Reuse openwrt_release fixes required by Linux 6.18 netfilter packaging.
+# Reuse openwrt_release packaging fixes.
 BASE_PATH="$ROOT_DIR/wrt_core"
 BUILD_DIR="$WORK_DIR"
 source "$ROOT_DIR/wrt_core/modules/system.sh"
-fix_netfilter_kmod_clash
 fix_opkg_check
 
 # Argon theme/config: repo is not a standard feed; copy packages explicitly.

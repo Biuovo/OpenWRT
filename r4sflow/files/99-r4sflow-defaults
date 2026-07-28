@@ -1,15 +1,7 @@
 #!/bin/sh
 
-# r4sflow uses an OpenWrt master Linux 6.18 kernel tree on top of v25.12.5
-# userspace. Official release kmods do not match this custom kernel, so keep
-# userspace feeds but disable kmods feeds to avoid opkg update/install errors.
-DISTFEEDS=/etc/opkg/distfeeds.conf
-if [ -f "$DISTFEEDS" ]; then
-	sed -i '/\/targets\/.*\/kmods\// s/^/# custom-6.18-kernel-disabled /' "$DISTFEEDS"
-fi
-
-# Default LuCI language.
-uci -q set luci.main.lang='zh_cn'
+# Default LuCI language. OpenWrt/LuCI uses zh_Hans for Simplified Chinese.
+uci -q set luci.main.lang='zh_Hans'
 uci -q commit luci
 
 exit 0
