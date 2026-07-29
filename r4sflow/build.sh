@@ -8,7 +8,7 @@ FIRMWARE_DIR="$ROOT_DIR/firmware"
 export CCACHE_DIR="${CCACHE_DIR:-$ROOT_DIR/.ccache}"
 mkdir -p "$CCACHE_DIR"
 REPO_URL=${REPO_URL:-https://github.com/openwrt/openwrt.git}
-REPO_BRANCH=${REPO_BRANCH:-v25.12.5}
+REPO_BRANCH=${REPO_BRANCH:-master}
 
 case "$MODEL" in
   r76s) CONFIG_FILE="$ROOT_DIR/r4sflow/configs/r76s.config" ;;
@@ -44,7 +44,7 @@ prepare_workdir() {
 
 prepare_workdir
 cd "$WORK_DIR"
-# Keep the official OpenWrt release kernel so distfeeds/kmods match and opkg can update/install packages.
+# Track OpenWrt master for the latest 6.18 kernel. Runtime kmods come from the matching self-built feed.
 
 # Extra feeds/packages aligned with openwrt_release plugin set.
 cat >> feeds.conf.default <<'EOF_FEEDS'
@@ -90,6 +90,26 @@ grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
 install -Dm755 "$ROOT_DIR/r4sflow/files/99-r4sflow-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-r4sflow-defaults"
 
+# Add a matching self-built opkg feed for this exact kernel/kmod ABI.
+CUSTOM_FEED_URL=""
+if [ -n "${GITHUB_REPOSITORY:-}" ]; then
+  CUSTOM_FEED_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/r4sflow/${MODEL}/latest/all"
+fi
+cat > "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-r4sflow-custom-feed" <<EOF_CUSTOM_FEED
+#!/bin/sh
+CUSTOM_FEED_URL='$CUSTOM_FEED_URL'
+if [ -n "\$CUSTOM_FEED_URL" ]; then
+  mkdir -p /etc/opkg
+  touch /etc/opkg/customfeeds.conf
+  sed -i '/[[:space:]]r4sflow_custom[[:space:]]/d' /etc/opkg/customfeeds.conf
+  sed -i '/^option[[:space:]]\+check_signature/d' /etc/opkg.conf
+  echo 'option check_signature 0' >> /etc/opkg.conf
+  echo "src/gz r4sflow_custom \$CUSTOM_FEED_URL" >> /etc/opkg/customfeeds.conf
+fi
+exit 0
+EOF_CUSTOM_FEED
+chmod +x "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-r4sflow-custom-feed"
+
 "$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig
 make download -j"$(nproc)"
@@ -97,6 +117,14 @@ make -j"$(($(nproc)+1))" || make -j1 V=s
 
 mkdir -p "$FIRMWARE_DIR"
 TARGET_DIR="bin/targets"
+PKG_REPO_DIR="$ROOT_DIR/package_repo/r4sflow/$MODEL/latest/all"
+rm -rf "$ROOT_DIR/package_repo/r4sflow/$MODEL/latest"
+mkdir -p "$PKG_REPO_DIR"
+find bin/packages bin/targets -type f -name '*.ipk' -exec cp -f {} "$PKG_REPO_DIR/" \; 2>/dev/null || true
+if ls "$PKG_REPO_DIR"/*.ipk >/dev/null 2>&1; then
+  ./scripts/ipkg-make-index.sh "$PKG_REPO_DIR" > "$PKG_REPO_DIR/Packages"
+  gzip -9nc "$PKG_REPO_DIR/Packages" > "$PKG_REPO_DIR/Packages.gz"
+fi
 case "$MODEL" in
   x64)
     find "$TARGET_DIR" -type f \( -name '*squashfs-combined-efi.img.gz' -o -name '*.manifest' \) -exec cp -f {} "$FIRMWARE_DIR/" \;

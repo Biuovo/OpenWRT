@@ -17,6 +17,7 @@ permissions: write-all
 
 env:
   TZ: Asia/Shanghai
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
@@ -25,7 +26,7 @@ jobs:
       - name: Build System Setup
         run: |
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-          sudo -E apt -yqq install dos2unix libfuse-dev
+          sudo -E apt -yqq install dos2unix libfuse-dev rsync
           sudo -E apt -yqq autoremove --purge
           sudo -E apt -yqq clean
 
@@ -67,6 +68,32 @@ jobs:
             action_build/.config
             action_build/tmp/.config-package.in
           if-no-files-found: ignore
+
+
+      - name: Publish matching opkg feed
+        if: success()
+        run: |
+          if [ -d "package_repo/r4sflow/${{ inputs.model }}/latest" ]; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            rm -rf /tmp/r4sflow-pages
+            if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+              git clone --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/r4sflow-pages
+            else
+              git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/r4sflow-pages
+              cd /tmp/r4sflow-pages
+              git checkout --orphan gh-pages
+              git rm -rf . >/dev/null 2>&1 || true
+              cd "$GITHUB_WORKSPACE"
+            fi
+            mkdir -p "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}"
+            rm -rf "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}/latest"
+            cp -a "package_repo/r4sflow/${{ inputs.model }}/latest" "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}/"
+            cd /tmp/r4sflow-pages
+            git add -A
+            git commit -m "Update r4sflow ${{ inputs.model }} opkg feed" || exit 0
+            git push origin gh-pages
+          fi
 
       - name: Kernel Version
         if: success()
