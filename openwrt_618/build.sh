@@ -11,8 +11,8 @@ REPO_URL=${REPO_URL:-https://github.com/openwrt/openwrt.git}
 REPO_BRANCH=${REPO_BRANCH:-master}
 
 case "$MODEL" in
-  r76s) CONFIG_FILE="$ROOT_DIR/r4sflow/configs/r76s.config" ;;
-  x64) CONFIG_FILE="$ROOT_DIR/r4sflow/configs/x64.config" ;;
+  r76s) CONFIG_FILE="$ROOT_DIR/openwrt_618/configs/r76s.config" ;;
+  x64) CONFIG_FILE="$ROOT_DIR/openwrt_618/configs/x64.config" ;;
   *) echo "Usage: $0 {r76s|x64}" >&2; exit 1 ;;
 esac
 
@@ -88,27 +88,27 @@ done
 # Speed up repeat GitHub Actions builds.
 grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
-install -Dm755 "$ROOT_DIR/r4sflow/files/99-r4sflow-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-r4sflow-defaults"
+install -Dm755 "$ROOT_DIR/openwrt_618/files/99-openwrt-618-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-openwrt-618-defaults"
 
 # Add a matching self-built opkg feed for this exact kernel/kmod ABI.
 CUSTOM_FEED_URL=""
 if [ -n "${GITHUB_REPOSITORY:-}" ]; then
-  CUSTOM_FEED_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/r4sflow/${MODEL}/latest/all"
+  CUSTOM_FEED_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/openwrt_618/${MODEL}/latest/all"
 fi
-cat > "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-r4sflow-custom-feed" <<EOF_CUSTOM_FEED
+cat > "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-openwrt_618-custom-feed" <<EOF_CUSTOM_FEED
 #!/bin/sh
 CUSTOM_FEED_URL='$CUSTOM_FEED_URL'
 if [ -n "\$CUSTOM_FEED_URL" ]; then
   mkdir -p /etc/opkg
   touch /etc/opkg/customfeeds.conf
-  sed -i '/[[:space:]]r4sflow_custom[[:space:]]/d' /etc/opkg/customfeeds.conf
+  sed -i '/[[:space:]]openwrt_618_custom[[:space:]]/d' /etc/opkg/customfeeds.conf
   sed -i '/^option[[:space:]]\+check_signature/d' /etc/opkg.conf
   echo 'option check_signature 0' >> /etc/opkg.conf
-  echo "src/gz r4sflow_custom \$CUSTOM_FEED_URL" >> /etc/opkg/customfeeds.conf
+  echo "src/gz openwrt_618_custom \$CUSTOM_FEED_URL" >> /etc/opkg/customfeeds.conf
 fi
 exit 0
 EOF_CUSTOM_FEED
-chmod +x "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-r4sflow-custom-feed"
+chmod +x "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-openwrt_618-custom-feed"
 
 "$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig
@@ -117,8 +117,8 @@ make -j"$(($(nproc)+1))" || make -j1 V=s
 
 mkdir -p "$FIRMWARE_DIR"
 TARGET_DIR="bin/targets"
-PKG_REPO_DIR="$ROOT_DIR/package_repo/r4sflow/$MODEL/latest/all"
-rm -rf "$ROOT_DIR/package_repo/r4sflow/$MODEL/latest"
+PKG_REPO_DIR="$ROOT_DIR/package_repo/openwrt_618/$MODEL/latest/all"
+rm -rf "$ROOT_DIR/package_repo/openwrt_618/$MODEL/latest"
 mkdir -p "$PKG_REPO_DIR"
 find bin/packages bin/targets -type f -name '*.ipk' -exec cp -f {} "$PKG_REPO_DIR/" \; 2>/dev/null || true
 if ls "$PKG_REPO_DIR"/*.ipk >/dev/null 2>&1; then

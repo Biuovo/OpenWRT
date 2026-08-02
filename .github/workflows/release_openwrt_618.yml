@@ -1,5 +1,5 @@
 name: Release R4S Flow
-run-name: R4SFlow - ${{ inputs.model }}
+run-name: OpenWrt 6.18 - ${{ inputs.model }}
 
 on:
   workflow_dispatch:
@@ -43,9 +43,9 @@ jobs:
             .ccache
             action_build/dl
             action_build/staging_dir
-          key: r4sflow-${{ runner.os }}-${{ inputs.model }}-${{ hashFiles('r4sflow/**', 'wrt_core/patches/install_refind_sing_box.sh') }}
+          key: openwrt_618-${{ runner.os }}-${{ inputs.model }}-${{ hashFiles('openwrt_618/**', 'wrt_core/patches/install_refind_sing_box.sh') }}
           restore-keys: |
-            r4sflow-${{ runner.os }}-${{ inputs.model }}-
+            openwrt_618-${{ runner.os }}-${{ inputs.model }}-
 
       - name: Refresh restored cache stamps
         run: |
@@ -56,13 +56,13 @@ jobs:
           fi
 
       - name: Build Firmware
-        run: ./r4sflow/build.sh ${{ inputs.model }}
+        run: ./openwrt_618/build.sh ${{ inputs.model }}
 
       - name: Upload failure logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: r4sflow-${{ inputs.model }}-failure-logs
+          name: openwrt_618-${{ inputs.model }}-failure-logs
           path: |
             action_build/logs/**
             action_build/.config
@@ -73,25 +73,25 @@ jobs:
       - name: Publish matching opkg feed
         if: success()
         run: |
-          if [ -d "package_repo/r4sflow/${{ inputs.model }}/latest" ]; then
+          if [ -d "package_repo/openwrt_618/${{ inputs.model }}/latest" ]; then
             git config --global user.name "github-actions[bot]"
             git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            rm -rf /tmp/r4sflow-pages
+            rm -rf /tmp/openwrt_618-pages
             if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-              git clone --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/r4sflow-pages
+              git clone --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/openwrt_618-pages
             else
-              git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/r4sflow-pages
-              cd /tmp/r4sflow-pages
+              git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/openwrt_618-pages
+              cd /tmp/openwrt_618-pages
               git checkout --orphan gh-pages
               git rm -rf . >/dev/null 2>&1 || true
               cd "$GITHUB_WORKSPACE"
             fi
-            mkdir -p "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}"
-            rm -rf "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}/latest"
-            cp -a "package_repo/r4sflow/${{ inputs.model }}/latest" "/tmp/r4sflow-pages/r4sflow/${{ inputs.model }}/"
-            cd /tmp/r4sflow-pages
+            mkdir -p "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}"
+            rm -rf "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}/latest"
+            cp -a "package_repo/openwrt_618/${{ inputs.model }}/latest" "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}/"
+            cd /tmp/openwrt_618-pages
             git add -A
-            git commit -m "Update r4sflow ${{ inputs.model }} opkg feed" || exit 0
+            git commit -m "Update openwrt_618 ${{ inputs.model }} opkg feed" || exit 0
             git push origin gh-pages
           fi
 
@@ -105,7 +105,7 @@ jobs:
         run: |
           PLUGINS=$(grep -h -oP 'luci-app(-[a-zA-Z0-9]{1,}){1,}' ./firmware/*.manifest 2>/dev/null | sort -u | paste - - - | awk '{printf "%-28s %-28s %-28s\n",$1,$2,$3}')
           {
-            echo "**R4SFlow OpenWrt Firmware for ${{ inputs.model }}**"
+            echo "**OpenWrt 6.18 OpenWrt Firmware for ${{ inputs.model }}**"
             echo "- Kernel: ${{ env.KVER }}"
             echo "- LAN IP: 192.168.100.1"
             echo ""
@@ -119,6 +119,6 @@ jobs:
         if: success()
         uses: softprops/action-gh-release@v2.5.0
         with:
-          tag_name: r4sflow_${{ inputs.model }}_${{ github.run_number }}
+          tag_name: openwrt_618_${{ inputs.model }}_${{ github.run_number }}
           files: ./firmware/*.*
           body_path: ./release_body.txt
