@@ -57,6 +57,13 @@ jobs:
 
       - name: Build Firmware
         run: ./openwrt_618/build.sh ${{ inputs.model }}
+      - name: Upload local kmods
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt_618-${{ inputs.model }}-local-kmods
+          path: ./firmware/*_local-kmods.tar.gz
+          if-no-files-found: error
 
       - name: Upload failure logs
         if: failure()
@@ -68,32 +75,6 @@ jobs:
             action_build/.config
             action_build/tmp/.config-package.in
           if-no-files-found: ignore
-
-
-      - name: Publish matching opkg feed
-        if: success()
-        run: |
-          if [ -d "package_repo/openwrt_618/${{ inputs.model }}/latest" ]; then
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            rm -rf /tmp/openwrt_618-pages
-            if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-              git clone --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/openwrt_618-pages
-            else
-              git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/openwrt_618-pages
-              cd /tmp/openwrt_618-pages
-              git checkout --orphan gh-pages
-              git rm -rf . >/dev/null 2>&1 || true
-              cd "$GITHUB_WORKSPACE"
-            fi
-            mkdir -p "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}"
-            rm -rf "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}/latest"
-            cp -a "package_repo/openwrt_618/${{ inputs.model }}/latest" "/tmp/openwrt_618-pages/openwrt_618/${{ inputs.model }}/"
-            cd /tmp/openwrt_618-pages
-            git add -A
-            git commit -m "Update openwrt_618 ${{ inputs.model }} opkg feed" || exit 0
-            git push origin gh-pages
-          fi
 
       - name: Kernel Version
         if: success()

@@ -64,9 +64,13 @@ source "$ROOT_DIR/wrt_core/modules/system.sh"
 fix_opkg_check
 
 # Use latest upstream DockerMan UI/translations instead of stale feed copy.
-rm -rf feeds/luci/applications/luci-app-dockerman feeds/luci/libs/luci-lib-docker package/custom/luci-app-dockerman package/custom/luci-lib-docker
-retry git clone --depth 1 https://github.com/lisaac/luci-app-dockerman.git package/custom/luci-app-dockerman
-retry git clone --depth 1 https://github.com/lisaac/luci-lib-docker.git package/custom/luci-lib-docker
+rm -rf feeds/luci/applications/luci-app-dockerman feeds/luci/libs/luci-lib-docker package/custom/luci-app-dockerman package/custom/luci-lib-docker /tmp/dockerman-src /tmp/luci-lib-docker-src
+retry git clone --depth 1 https://github.com/lisaac/luci-app-dockerman.git /tmp/dockerman-src
+retry git clone --depth 1 https://github.com/lisaac/luci-lib-docker.git /tmp/luci-lib-docker-src
+# These repositories contain OpenWrt packages below applications/ and libraries/.
+cp -a /tmp/dockerman-src/applications/luci-app-dockerman package/custom/
+cp -a /tmp/luci-lib-docker-src/libraries/luci-lib-docker package/custom/
+rm -rf /tmp/dockerman-src /tmp/luci-lib-docker-src
 # OpenWrt master r8125 is already 9.016.01, same generation as FriendlyWrt's RTL8125 update.
 
 cp -f "$CONFIG_FILE" .config
@@ -78,25 +82,8 @@ grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
 install -Dm755 "$ROOT_DIR/openwrt_618/files/99-openwrt-618-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-openwrt-618-defaults"
 
-# Add a matching self-built opkg feed for this exact kernel/kmod ABI.
-CUSTOM_FEED_URL=""
-if [ -n "${GITHUB_REPOSITORY:-}" ]; then
-  CUSTOM_FEED_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gh-pages/openwrt_618/${MODEL}/latest/all"
-fi
-cat > "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-openwrt_618-custom-feed" <<EOF_CUSTOM_FEED
-#!/bin/sh
-CUSTOM_FEED_URL='$CUSTOM_FEED_URL'
-if [ -n "\$CUSTOM_FEED_URL" ]; then
-  mkdir -p /etc/opkg
-  touch /etc/opkg/customfeeds.conf
-  sed -i '/[[:space:]]openwrt_618_custom[[:space:]]/d' /etc/opkg/customfeeds.conf
-  sed -i '/^option[[:space:]]\+check_signature/d' /etc/opkg.conf
-  echo 'option check_signature 0' >> /etc/opkg.conf
-  echo "src/gz openwrt_618_custom \$CUSTOM_FEED_URL" >> /etc/opkg/customfeeds.conf
-fi
-exit 0
-EOF_CUSTOM_FEED
-chmod +x "$WORK_DIR/package/base-files/files/etc/uci-defaults/98-openwrt_618-custom-feed"
+# No automatic third-party kmod feed is installed into the firmware.
+# All selected kmods are built as local .ipk packages and bundled below for manual install.
 
 "$ROOT_DIR/wrt_core/patches/install_refind_sing_box.sh" "$WORK_DIR" "$MODEL"
 make defconfig
@@ -113,6 +100,18 @@ if ls "$PKG_REPO_DIR"/*.ipk >/dev/null 2>&1; then
   ./scripts/ipkg-make-index.sh "$PKG_REPO_DIR" > "$PKG_REPO_DIR/Packages"
   gzip -9nc "$PKG_REPO_DIR/Packages" > "$PKG_REPO_DIR/Packages.gz"
 fi
+# Bundle only locally built kmods for optional manual installation.
+LOCAL_KMOD_DIR="$WORK_DIR/tmp-local-kmods"
+rm -rf "$LOCAL_KMOD_DIR"
+mkdir -p "$LOCAL_KMOD_DIR"
+find "$PKG_REPO_DIR" -maxdepth 1 -type f -name 'kmod-*.ipk' -exec cp -f {} "$LOCAL_KMOD_DIR/" \;
+cat > "$LOCAL_KMOD_DIR/README-zh.txt" <<'EOF_KMOD_README'
+本目录是与本固件同一次构建、同一内核 ABI 的本地 kmod 包。
+需要时把 .ipk 上传到路由器后执行：
+  opkg install /tmp/kmods/*.ipk
+不要把这些 kmod 与其它版本固件混装；先确认 uname -r 与固件内核一致。
+EOF_KMOD_README
+tar -czf "$FIRMWARE_DIR/openwrt_618_${MODEL}_local-kmods.tar.gz" -C "$LOCAL_KMOD_DIR" .
 case "$MODEL" in
   x64)
     find "$TARGET_DIR" -type f \( -name '*squashfs-combined-efi.img.gz' -o -name '*.manifest' \) -exec cp -f {} "$FIRMWARE_DIR/" \;
