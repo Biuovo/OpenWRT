@@ -1,4 +1,4 @@
-name: Release R4S Flow
+name: Build OpenWrt 6.18
 run-name: OpenWrt 6.18 - ${{ inputs.model }}
 
 on:
