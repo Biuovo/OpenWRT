@@ -51,6 +51,7 @@ cat >> feeds.conf.default <<'EOF_FEEDS'
 src-git openwrt_pkgs https://github.com/sbwml/openwrt_pkgs.git;main
 src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main
 src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main
+src-git openlist2 https://github.com/sbwml/luci-app-openlist2.git;main
 EOF_FEEDS
 
 retry ./scripts/feeds update -a
@@ -63,13 +64,25 @@ BUILD_DIR="$WORK_DIR"
 source "$ROOT_DIR/wrt_core/modules/system.sh"
 fix_opkg_check
 
+# Restore requested UI/apps: Argon config, DiskMan, QuickFile, OpenList2, netspeedtest, Samba, UPnP.
+rm -rf package/custom/luci-theme-argon package/custom/luci-app-argon-config package/custom/luci-app-diskman package/custom/luci-app-quickfile package/custom/quickfile
+rm -rf /tmp/argon-src /tmp/diskman-src /tmp/quickfile-src
+retry git clone --depth 1 -b openwrt-24.10 https://github.com/sbwml/luci-theme-argon.git /tmp/argon-src
+cp -a /tmp/argon-src/luci-theme-argon package/custom/
+cp -a /tmp/argon-src/luci-app-argon-config package/custom/
+retry git clone --depth 1 https://github.com/sbwml/luci-app-diskman.git /tmp/diskman-src
+cp -a /tmp/diskman-src/luci-app-diskman package/custom/
+retry git clone --depth 1 https://github.com/sbwml/luci-app-quickfile.git /tmp/quickfile-src
+cp -a /tmp/quickfile-src/luci-app-quickfile package/custom/
+cp -a /tmp/quickfile-src/quickfile package/custom/
+rm -rf /tmp/argon-src /tmp/diskman-src /tmp/quickfile-src
+
 # Use latest upstream DockerMan UI/translations instead of stale feed copy.
 rm -rf feeds/luci/applications/luci-app-dockerman feeds/luci/libs/luci-lib-docker package/custom/luci-app-dockerman package/custom/luci-lib-docker /tmp/dockerman-src /tmp/luci-lib-docker-src
 retry git clone --depth 1 https://github.com/lisaac/luci-app-dockerman.git /tmp/dockerman-src
 retry git clone --depth 1 https://github.com/lisaac/luci-lib-docker.git /tmp/luci-lib-docker-src
-# These repositories contain OpenWrt packages below applications/ and libraries/.
 cp -a /tmp/dockerman-src/applications/luci-app-dockerman package/custom/
-cp -a /tmp/luci-lib-docker-src/libraries/luci-lib-docker package/custom/
+cp -a /tmp/luci-lib-docker-src/collections/luci-lib-docker package/custom/
 rm -rf /tmp/dockerman-src /tmp/luci-lib-docker-src
 # OpenWrt master r8125 is already 9.016.01, same generation as FriendlyWrt's RTL8125 update.
 
