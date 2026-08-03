@@ -51,7 +51,6 @@ cat >> feeds.conf.default <<'EOF_FEEDS'
 src-git openwrt_pkgs https://github.com/sbwml/openwrt_pkgs.git;main
 src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main
 src-git momo https://github.com/nikkinikki-org/OpenWrt-momo.git;main
-src-git openlist2 https://github.com/sbwml/luci-app-openlist2.git;main
 EOF_FEEDS
 
 retry ./scripts/feeds update -a
@@ -64,26 +63,15 @@ BUILD_DIR="$WORK_DIR"
 source "$ROOT_DIR/wrt_core/modules/system.sh"
 fix_opkg_check
 
-# Argon theme/config: repo is not a standard feed; copy packages explicitly.
-TMP_ARGON=$(mktemp -d)
-if retry git clone --depth 1 https://github.com/sbwml/luci-theme-argon.git "$TMP_ARGON"; then
-  [ -d "$TMP_ARGON/luci-theme-argon" ] && rm -rf package/custom/luci-theme-argon && cp -a "$TMP_ARGON/luci-theme-argon" package/custom/
-  [ -d "$TMP_ARGON/luci-app-argon-config" ] && rm -rf package/custom/luci-app-argon-config && cp -a "$TMP_ARGON/luci-app-argon-config" package/custom/
-fi
-rm -rf "$TMP_ARGON"
-
-# DiskMan package, if upstream layout is available.
-TMP_DISK=$(mktemp -d)
-if retry git clone --depth 1 https://github.com/sbwml/luci-app-diskman.git "$TMP_DISK"; then
-  [ -d "$TMP_DISK/luci-app-diskman" ] && rm -rf package/custom/luci-app-diskman && cp -a "$TMP_DISK/luci-app-diskman" package/custom/
-fi
-rm -rf "$TMP_DISK"
+# Use latest upstream DockerMan UI/translations instead of stale feed copy.
+rm -rf feeds/luci/applications/luci-app-dockerman feeds/luci/libs/luci-lib-docker package/custom/luci-app-dockerman package/custom/luci-lib-docker
+retry git clone --depth 1 https://github.com/lisaac/luci-app-dockerman.git package/custom/luci-app-dockerman
+retry git clone --depth 1 https://github.com/lisaac/luci-lib-docker.git package/custom/luci-lib-docker
+# OpenWrt master r8125 is already 9.016.01, same generation as FriendlyWrt's RTL8125 update.
 
 cp -f "$CONFIG_FILE" .config
-# Keep old openwrt_release package baseline consistent.
-for extra in compile_base docker_deps proxy; do
-  [ -f "$ROOT_DIR/wrt_core/deconfig/${extra}.config" ] && cat "$ROOT_DIR/wrt_core/deconfig/${extra}.config" >> .config
-done
+# This profile is intentionally self-contained. Do not append global deconfig snippets:
+# they pull in bulky optional apps. Matching kmods are still exported as a local opkg repo.
 
 # Speed up repeat GitHub Actions builds.
 grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
