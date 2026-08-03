@@ -83,6 +83,8 @@ retry git clone --depth 1 https://github.com/lisaac/luci-app-dockerman.git /tmp/
 retry git clone --depth 1 https://github.com/lisaac/luci-lib-docker.git /tmp/luci-lib-docker-src
 cp -a /tmp/dockerman-src/applications/luci-app-dockerman package/custom/
 cp -a /tmp/luci-lib-docker-src/collections/luci-lib-docker package/custom/
+# OpenWrt master/APK rejects versions like v0.3.4; normalize even if CONFIG_USE_APK is disabled later.
+sed -i -E 's/^(PKG_VERSION):=v/\1:=/' package/custom/luci-app-dockerman/Makefile package/custom/luci-lib-docker/Makefile
 rm -rf /tmp/dockerman-src /tmp/luci-lib-docker-src
 # OpenWrt master r8125 is already 9.016.01, same generation as FriendlyWrt's RTL8125 update.
 
