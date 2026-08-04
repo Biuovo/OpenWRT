@@ -1,0 +1,22 @@
+#!/bin/sh
+
+freqs=""
+for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq /sys/devices/system/cpu/cpu[0-9]*/cpufreq/cpuinfo_cur_freq; do
+	[ -r "$f" ] || continue
+	v="$(cat "$f" 2>/dev/null)"
+	case "$v" in
+		''|*[!0-9]*) continue ;;
+	esac
+	freqs="$freqs $v"
+done
+
+[ -n "$freqs" ] || { echo -n "N/A"; exit 0; }
+
+echo "$freqs" | tr ' ' '\n' | awk 'NF {print int($1/1000)}' | sort -n | uniq | awk '
+BEGIN { first=1 }
+{
+	if (!first) printf " / ";
+	printf "%d MHz", $1;
+	first=0;
+}
+'

@@ -398,8 +398,38 @@ update_nss_pbuf_performance() {
 
 set_build_signature() {
     local file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js"
-    if [ -d "$(dirname "$file")" ] && [ -f $file ]; then
+
+    # Install stable helpers for LuCI system overview. This is needed on official OpenWrt,
+    # where sbwml's autocore paths might not exist.
+    install -Dm755 "$BASE_PATH/patches/cpuinfo" "$BUILD_DIR/package/base-files/files/sbin/cpuinfo"
+    install -Dm755 "$BASE_PATH/patches/tempinfo" "$BUILD_DIR/package/base-files/files/sbin/tempinfo"
+
+    if [ -d "$(dirname "$file")" ] && [ -f "$file" ]; then
         sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ Build by Biuovo')/g" "$file"
+
+        python3 - "$file" <<'PY'
+from pathlib import Path
+import re
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+if "fs.exec_direct('/sbin/cpuinfo')" not in s:
+    s = s.replace(
+        "\t\t\tuci.load('system')\n\t\t]);",
+        "\t\t\tuci.load('system'),\n\t\t\tL.resolveDefault(fs.exec_direct('/sbin/cpuinfo'), ''),\n\t\t\tL.resolveDefault(fs.exec_direct('/sbin/tempinfo'), '')\n\t\t]);"
+    )
+    s = re.sub(
+        r"\n\s*unixtime\s*=\s*data\[3\];",
+        "\n\t\t\tunixtime    = data[3],\n\t\t\tcpuinfo     = (data[5] || '').trim(),\n\t\t\ttempinfo    = (data[6] || '').trim();",
+        s,
+        count=1
+    )
+    s = s.replace(
+        "\t\t\t_('Kernel Version'),   boardinfo.kernel,",
+        "\t\t\t_('Kernel Version'),   boardinfo.kernel,\n\t\t\t_('CPU Frequency'),    cpuinfo || _('N/A'),\n\t\t\t_('CPU Temperature'),  tempinfo || _('N/A'),"
+    )
+p.write_text(s)
+PY
     fi
 }
 

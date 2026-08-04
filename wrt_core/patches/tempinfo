@@ -1,29 +1,34 @@
 #!/bin/sh
 
-IEEE_PATH="/sys/class/ieee80211"
-THERMAL_PATH="/sys/class/thermal"
+best_name=""
+best_temp=""
 
-if grep -Eq "ipq40xx|ipq806x" "/etc/openwrt_release"; then
-	wifi_temp="$(awk '{printf("%.1f°C ", $0 / 1000)}' "$IEEE_PATH"/phy*/device/hwmon/hwmon*/temp1_input 2>"/dev/null" | awk '$1=$1')"
-else
-	wifi_temp="$(cat "$IEEE_PATH"/phy*/hwmon*/temp1_input 2>"/dev/null" | awk '{printf("%.1f°C ", $0 / 1000)}' | awk '$1=$1')"
-fi
+for z in /sys/class/thermal/thermal_zone*; do
+	[ -r "$z/temp" ] || continue
+	type="$(cat "$z/type" 2>/dev/null)"
+	temp="$(cat "$z/temp" 2>/dev/null)"
+	case "$temp" in
+		''|*[!0-9-]*) continue ;;
+	esac
+	# Ignore bogus sensors.
+	[ "$temp" -gt 0 ] 2>/dev/null || continue
+	[ "$temp" -lt 120000 ] 2>/dev/null || continue
 
-if grep -q "ipq40xx" "/etc/openwrt_release"; then
-	if [ -e "$IEEE_PATH/phy0/hwmon0/temp1_input" ]; then
-		mt76_temp="$(awk -F ': ' '{print $2}' "$IEEE_PATH/phy0/hwmon0/temp1_input" 2>"/dev/null")°C"
-	fi
-	[ -z "$mt76_temp" ] || wifi_temp="${wifi_temp:+$wifi_temp }$mt76_temp"
-else
-	cpu_temp="$(awk '{printf("%.1f°C", $0 / 1000)}' "$THERMAL_PATH/thermal_zone0/temp" 2>"/dev/null")"
-fi
+	case "$type" in
+		*cpu*|*CPU*|*soc*|*SOC*|*thermal*|*rockchip*)
+			best_name="$type"
+			best_temp="$temp"
+			break
+			;;
+	esac
 
-if [ -n "$cpu_temp" ] && [ -z "$wifi_temp" ]; then
-	echo -n "CPU: $cpu_temp"
-elif [ -z "$cpu_temp" ] && [ -n "$wifi_temp" ]; then
-	echo -n "WiFi: $wifi_temp"
-elif [ -n "$cpu_temp" ] && [ -n "$wifi_temp" ]; then
-	echo -n "CPU: $cpu_temp, WiFi: $wifi_temp"
-else
-	echo -n "No temperature info"
-fi
+	[ -n "$best_temp" ] || { best_name="$type"; best_temp="$temp"; }
+done
+
+[ -n "$best_temp" ] || { echo -n "N/A"; exit 0; }
+
+awk -v name="$best_name" -v temp="$best_temp" 'BEGIN {
+	if (temp >= 1000 || temp <= -1000) temp = temp / 1000;
+	if (name == "") name = "CPU";
+	printf "%s: %.1f°C", name, temp;
+}'
