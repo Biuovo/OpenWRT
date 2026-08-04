@@ -5,8 +5,13 @@ BUILD_DIR=${1:?build dir required}
 MODEL=${2:?model required}
 
 case "$MODEL" in
-  r76s|r76s_immwrt) REFIND_ARCH="arm64" ;;
-  x64|x64_immwrt) REFIND_ARCH="amd64" ;;
+  r76s|r76s_immwrt|jdcloud_ipq60xx_immwrt|jdcloud_ipq60xx_libwrt|er1|er1_immwrt)
+    REFIND_ARCH="arm64"
+    ;;
+  x64|x64_immwrt|x86|x86_64)
+    # Use universal amd64, not amd64v3.
+    REFIND_ARCH="amd64"
+    ;;
   *)
     if grep -q '^CONFIG_TARGET_x86_64=y' "$BUILD_DIR/.config" 2>/dev/null; then
       REFIND_ARCH="amd64"
@@ -24,32 +29,34 @@ mkdir -p "$BUILD_DIR/package/custom"
 rm -rf "$BUILD_DIR/feeds/packages/net/sing-box" "$BUILD_DIR/package/feeds/packages/sing-box" "$PKG_DIR"
 mkdir -p "$PKG_DIR/files"
 
-if [ "$MODEL" = "r76s_immwrt" ]; then
-  TAG="v1.14.0-beta.4-reF1nd-urltest-core"
-  VERSION="1.14.0-beta.4"
-  URL="https://github.com/Biuovo/sing-box-releases/releases/download/v1.14.0-beta.4-reF1nd-urltest-core/sing-box-1.14.0-beta.4-linux-arm64-musl.tar.gz"
-else
-  python3 - "$REFIND_ARCH" > "$TMP_DIR/asset.env" <<'PY'
-import json, sys, urllib.request
+python3 - "$REFIND_ARCH" > "$TMP_DIR/asset.env" <<'PY'
+import json, re, sys, urllib.request
 arch=sys.argv[1]
-req=urllib.request.Request('https://api.github.com/repos/reF1nd/sing-box-releases/releases/latest', headers={'User-Agent':'openwrt-release-build'})
-r=json.load(urllib.request.urlopen(req))
-tag=r['tag_name']
+req=urllib.request.Request('https://api.github.com/repos/Biuovo/sing-box-releases/releases?per_page=20', headers={'User-Agent':'openwrt-release-build'})
+releases=json.load(urllib.request.urlopen(req))
+rel=next((x for x in releases if not x.get('draft')), None)
+if not rel:
+    raise SystemExit('No non-draft release found in Biuovo/sing-box-releases')
+tag=rel['tag_name']
 want=f'linux-{arch}-musl.tar.gz'
-asset=None
-for a in r['assets']:
-    if a['name'].endswith(want):
-        asset=a; break
+asset=next((a for a in rel.get('assets', []) if a['name'].endswith(want)), None)
 if not asset:
-    raise SystemExit(f'No asset matching {want}')
+    names=', '.join(a['name'] for a in rel.get('assets', []))
+    raise SystemExit(f'No asset matching {want} in {tag}; assets: {names}')
+# OpenWrt package versions must be parser-friendly. Use tag version when it is semver-like,
+# otherwise fall back to release publish date for moving tags like ebpf-latest-reF1nd-urltest-core.
+m=re.search(r'v?(\d+(?:\.\d+)+(?:[-~_][0-9A-Za-z.]+)?)', tag)
+if m:
+    version=m.group(1).replace('_', '~')
+else:
+    version=(rel.get('published_at') or rel.get('created_at') or '1970-01-01')[:10].replace('-', '.')
 print(f"TAG='{tag}'")
-print(f"VERSION='{tag.lstrip('v')}'")
+print(f"VERSION='{version}'")
 print(f"URL='{asset['browser_download_url']}'")
 PY
-  . "$TMP_DIR/asset.env"
-fi
+. "$TMP_DIR/asset.env"
 
-echo "Using sing-box: $TAG ($REFIND_ARCH)"
+echo "Using Biuovo sing-box: $TAG ($REFIND_ARCH)"
 curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o "$TMP_DIR/sing-box.tar.gz" "$URL"
 tar -xzf "$TMP_DIR/sing-box.tar.gz" -C "$TMP_DIR"
 BIN=$(find "$TMP_DIR" -type f -name sing-box | head -n1)
@@ -69,12 +76,12 @@ include \$(INCLUDE_DIR)/package.mk
 define Package/sing-box
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=sing-box reF1nd prebuilt core
+  TITLE:=sing-box Biuovo reF1nd urltest prebuilt core
   DEPENDS:=+ca-bundle
 endef
 
 define Package/sing-box/description
-  sing-box core from reF1nd/sing-box-releases.
+  sing-box core from Biuovo/sing-box-releases.
 endef
 
 define Build/Compile
