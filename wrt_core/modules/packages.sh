@@ -542,6 +542,41 @@ update_diskman() {
     fi
 }
 
+update_docker_stack() {
+    local repo_url="https://github.com/openwrt/packages.git"
+    local repo_branch="openwrt-25.12"
+    local utils_dir="$BUILD_DIR/feeds/packages/utils"
+
+    [ -d "$utils_dir" ] || return 0
+
+    echo "正在更新 Docker stack 到 OpenWrt packages ${repo_branch} 最新版..."
+    cd "$utils_dir" || return
+    \rm -rf docker dockerd containerd runc docker-stack-tmp
+
+    if ! git_retry clone --depth=1 --filter=blob:none --no-checkout -b "$repo_branch" "$repo_url" docker-stack-tmp; then
+        echo "错误：从 $repo_url 克隆 Docker stack 失败" >&2
+        exit 1
+    fi
+
+    cd docker-stack-tmp || return
+    git_retry sparse-checkout init --cone
+    git_retry sparse-checkout set utils/docker utils/dockerd utils/containerd utils/runc || return
+    git_retry checkout --quiet
+
+    mv utils/docker utils/dockerd utils/containerd utils/runc .. || return
+    cd .. || return
+    \rm -rf docker-stack-tmp
+    cd "$BUILD_DIR" || return
+
+    for component in docker dockerd containerd runc; do
+        if [ -f "$utils_dir/$component/Makefile" ]; then
+            printf '%s ' "$component"
+            grep -m1 '^PKG_VERSION:=' "$utils_dir/$component/Makefile" | cut -d= -f2
+        fi
+    done
+    echo "Docker stack 更新完成"
+}
+
 _sync_luci_lib_docker() {
     local lib_path="$BUILD_DIR/feeds/luci/libs/luci-lib-docker"
     local repo_url="https://github.com/lisaac/luci-lib-docker.git"

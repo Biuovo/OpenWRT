@@ -81,6 +81,7 @@ main() {
     fix_rust_compile_error
     update_smartdns
     update_diskman
+    update_docker_stack
     case "$BUILD_MODEL" in
         r76s_immwrt|x64_immwrt) ;;
         *) update_dockerman ;;
