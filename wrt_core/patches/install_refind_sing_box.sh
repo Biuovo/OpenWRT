@@ -24,7 +24,12 @@ mkdir -p "$BUILD_DIR/package/custom"
 rm -rf "$BUILD_DIR/feeds/packages/net/sing-box" "$BUILD_DIR/package/feeds/packages/sing-box" "$PKG_DIR"
 mkdir -p "$PKG_DIR/files"
 
-python3 - "$REFIND_ARCH" > "$TMP_DIR/asset.env" <<'PY'
+if [ "$MODEL" = "r76s_immwrt" ]; then
+  TAG="v1.14.0-beta.4-reF1nd-urltest-core"
+  VERSION="1.14.0-beta.4"
+  URL="https://github.com/Biuovo/sing-box-releases/releases/download/v1.14.0-beta.4-reF1nd-urltest-core/sing-box-1.14.0-beta.4-linux-arm64-musl.tar.gz"
+else
+  python3 - "$REFIND_ARCH" > "$TMP_DIR/asset.env" <<'PY'
 import json, sys, urllib.request
 arch=sys.argv[1]
 req=urllib.request.Request('https://api.github.com/repos/reF1nd/sing-box-releases/releases/latest', headers={'User-Agent':'openwrt-release-build'})
@@ -41,9 +46,10 @@ print(f"TAG='{tag}'")
 print(f"VERSION='{tag.lstrip('v')}'")
 print(f"URL='{asset['browser_download_url']}'")
 PY
-. "$TMP_DIR/asset.env"
+  . "$TMP_DIR/asset.env"
+fi
 
-echo "Using reF1nd sing-box: $TAG ($REFIND_ARCH)"
+echo "Using sing-box: $TAG ($REFIND_ARCH)"
 curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o "$TMP_DIR/sing-box.tar.gz" "$URL"
 tar -xzf "$TMP_DIR/sing-box.tar.gz" -C "$TMP_DIR"
 BIN=$(find "$TMP_DIR" -type f -name sing-box | head -n1)
