@@ -1,6 +1,6 @@
 #!/bin/sh
 
-best_name=""
+# Report the SoC/CPU thermal zone used by Rockchip boards.
 best_temp=""
 
 for z in /sys/class/thermal/thermal_zone*; do
@@ -10,25 +10,25 @@ for z in /sys/class/thermal/thermal_zone*; do
 	case "$temp" in
 		''|*[!0-9-]*) continue ;;
 	esac
-	# Ignore bogus sensors.
+	# Ignore bogus sensors and prefer CPU/SoC thermal zones.
 	[ "$temp" -gt 0 ] 2>/dev/null || continue
 	[ "$temp" -lt 120000 ] 2>/dev/null || continue
 
 	case "$type" in
 		*cpu*|*CPU*|*soc*|*SOC*|*thermal*|*rockchip*)
-			best_name="$type"
 			best_temp="$temp"
 			break
 			;;
+		*)
+			[ -n "$best_temp" ] || best_temp="$temp"
+			;;
 	esac
-
-	[ -n "$best_temp" ] || { best_name="$type"; best_temp="$temp"; }
 done
 
-[ -n "$best_temp" ] || { echo -n "N/A"; exit 0; }
+# An absent sensor should not create an "N/A" row in LuCI.
+[ -n "$best_temp" ] || exit 0
 
-awk -v name="$best_name" -v temp="$best_temp" 'BEGIN {
+awk -v temp="$best_temp" 'BEGIN {
 	if (temp >= 1000 || temp <= -1000) temp = temp / 1000;
-	if (name == "") name = "CPU";
-	printf "%s: %.1f°C", name, temp;
+	printf "CPU: %.1f°C", temp;
 }'

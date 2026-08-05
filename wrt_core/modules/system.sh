@@ -425,8 +425,12 @@ if "fs.exec_direct('/sbin/cpuinfo')" not in s:
         count=1
     )
     s = s.replace(
-        "\t\t\t_('Kernel Version'),   boardinfo.kernel,",
-        "\t\t\t_('Kernel Version'),   boardinfo.kernel,\n\t\t\t_('CPU Frequency'),    cpuinfo || _('N/A'),\n\t\t\t_('CPU Temperature'),  tempinfo || _('N/A'),"
+        "\t\t\t_('Architecture'),     boardinfo.system,",
+        "\t\t\t_('Architecture'),     cpuinfo || boardinfo.system,"
+    )
+    s = s.replace(
+        "\t\t];\n\n\t\tvar table = E('table', { 'class': 'table' });",
+        "\t\t];\n\n\t\tif (tempinfo) {\n\t\t\tfields.splice(6, 0, _('Temperature'));\n\t\t\tfields.splice(7, 0, tempinfo);\n\t\t}\n\n\t\tvar table = E('table', { 'class': 'table' });"
     )
 p.write_text(s)
 PY
