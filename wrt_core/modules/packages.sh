@@ -758,6 +758,18 @@ update_aurora_config() {
     rm -rf "$tmp_dir/.git"
     mv "$tmp_dir" "$dst_app_path"
 
+    local default_template="$dst_app_path/root/usr/share/aurora/default.template"
+    if [ -f "$default_template" ]; then
+        sed -i \
+            -e "s/option light_brand '.*/option light_brand '#31a1a1'/" \
+            -e "s/option light_link '.*/option light_link '#31a1a1'/" \
+            -e "s/option dark_brand '.*/option dark_brand '#31a1a1'/" \
+            -e "s/option dark_link '.*/option dark_link '#31a1a1'/" \
+            -e "s/option nav_type '.*/option nav_type 'mega-menu'/" \
+            -e "s/option toolbar_enabled '.*/option toolbar_enabled '1'/" \
+            "$default_template"
+    fi
+
     echo "luci-app-aurora-config 更新完成"
 }
 

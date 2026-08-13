@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Aurora 首次启动时会先由 80_aurora 生成 /etc/config/aurora；
+# 本脚本随后写入自用默认外观。
+[ -f /etc/config/aurora ] || exit 0
+
+uci -q set aurora.theme.light_brand='#31a1a1'
+uci -q set aurora.theme.light_link='#31a1a1'
+uci -q set aurora.theme.dark_brand='#31a1a1'
+uci -q set aurora.theme.dark_link='#31a1a1'
+uci -q set aurora.theme.nav_type='mega-menu'
+uci -q set aurora.theme.toolbar_enabled='1'
+uci -q commit aurora
+
+exit 0

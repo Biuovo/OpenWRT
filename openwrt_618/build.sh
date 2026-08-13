@@ -64,18 +64,31 @@ BUILD_DIR="$WORK_DIR"
 source "$ROOT_DIR/wrt_core/modules/system.sh"
 fix_opkg_check
 
-# Restore requested UI/apps: Argon config, DiskMan, QuickFile, OpenList2, netspeedtest, Samba, UPnP.
-rm -rf package/custom/luci-theme-argon package/custom/luci-app-argon-config package/custom/luci-app-diskman package/custom/luci-app-quickfile package/custom/quickfile
-rm -rf /tmp/argon-src /tmp/diskman-src /tmp/quickfile-src
-retry git clone --depth 1 -b openwrt-24.10 https://github.com/sbwml/luci-theme-argon.git /tmp/argon-src
-cp -a /tmp/argon-src/luci-theme-argon package/custom/
-cp -a /tmp/argon-src/luci-app-argon-config package/custom/
+# Restore requested UI/apps: Aurora config, DiskMan, QuickFile, OpenList2, netspeedtest, Samba, UPnP.
+rm -rf package/custom/luci-theme-aurora package/custom/luci-app-aurora-config package/custom/luci-app-diskman package/custom/luci-app-quickfile package/custom/quickfile
+rm -rf /tmp/aurora-theme-src /tmp/aurora-config-src /tmp/diskman-src /tmp/quickfile-src
+retry git clone --depth 1 https://github.com/eamonxg/luci-theme-aurora.git /tmp/aurora-theme-src
+retry git clone --depth 1 https://github.com/eamonxg/luci-app-aurora-config.git /tmp/aurora-config-src
+cp -a /tmp/aurora-theme-src package/custom/luci-theme-aurora
+cp -a /tmp/aurora-config-src package/custom/luci-app-aurora-config
+rm -rf package/custom/luci-theme-aurora/.git package/custom/luci-app-aurora-config/.git
+AURORA_TEMPLATE="package/custom/luci-app-aurora-config/root/usr/share/aurora/default.template"
+if [ -f "$AURORA_TEMPLATE" ]; then
+  sed -i \
+    -e "s/option light_brand '.*/option light_brand '#31a1a1'/" \
+    -e "s/option light_link '.*/option light_link '#31a1a1'/" \
+    -e "s/option dark_brand '.*/option dark_brand '#31a1a1'/" \
+    -e "s/option dark_link '.*/option dark_link '#31a1a1'/" \
+    -e "s/option nav_type '.*/option nav_type 'mega-menu'/" \
+    -e "s/option toolbar_enabled '.*/option toolbar_enabled '1'/" \
+    "$AURORA_TEMPLATE"
+fi
 retry git clone --depth 1 https://github.com/sbwml/luci-app-diskman.git /tmp/diskman-src
 cp -a /tmp/diskman-src/luci-app-diskman package/custom/
 retry git clone --depth 1 https://github.com/sbwml/luci-app-quickfile.git /tmp/quickfile-src
 cp -a /tmp/quickfile-src/luci-app-quickfile package/custom/
 cp -a /tmp/quickfile-src/quickfile package/custom/
-rm -rf /tmp/argon-src /tmp/diskman-src /tmp/quickfile-src
+rm -rf /tmp/aurora-theme-src /tmp/aurora-config-src /tmp/diskman-src /tmp/quickfile-src
 
 # Use latest upstream DockerMan UI/translations instead of stale feed copy.
 rm -rf feeds/luci/applications/luci-app-dockerman feeds/luci/libs/luci-lib-docker package/custom/luci-app-dockerman package/custom/luci-lib-docker /tmp/dockerman-src /tmp/luci-lib-docker-src
@@ -89,13 +102,18 @@ rm -rf /tmp/dockerman-src /tmp/luci-lib-docker-src
 # OpenWrt master r8125 is already 9.016.01, same generation as FriendlyWrt's RTL8125 update.
 
 cp -f "$CONFIG_FILE" .config
+# Make Aurora the LuCI collection default when luci-ssl pulls a theme.
+find feeds/luci/collections -type f -name Makefile -exec sed -i 's/luci-theme-bootstrap/luci-theme-aurora/g' {} +
 # This profile is intentionally self-contained. Do not append global deconfig snippets:
 # they pull in bulky optional apps. Matching kmods are still exported as a local opkg repo.
 
 # Speed up repeat GitHub Actions builds.
 grep -qxF 'CONFIG_CCACHE=y' .config || echo 'CONFIG_CCACHE=y' >> .config
 
-install -Dm755 "$ROOT_DIR/openwrt_618/files/99-openwrt-618-defaults"   "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-openwrt-618-defaults"
+install -Dm755 "$ROOT_DIR/openwrt_618/files/99-openwrt-618-defaults" \
+  "$WORK_DIR/package/base-files/files/etc/uci-defaults/99-openwrt-618-defaults"
+install -Dm755 "$ROOT_DIR/wrt_core/patches/990_set_aurora_defaults" \
+  "$WORK_DIR/package/base-files/files/etc/uci-defaults/990_set_aurora_defaults"
 
 # No automatic third-party kmod feed is installed into the firmware.
 # All selected kmods are built as local .ipk packages and bundled below for manual install.
