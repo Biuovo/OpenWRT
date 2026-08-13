@@ -83,7 +83,7 @@ main() {
     update_diskman
     update_docker_stack
     case "$BUILD_MODEL" in
-        r76s_openwrt|x64_immwrt) ;;
+        r76s_openwrt|x64_openwrt) ;;
         *) update_dockerman ;;
     esac
     set_nginx_default_config
@@ -99,7 +99,7 @@ main() {
     install_feeds
     verify_custom_feed_installed_paths
     case "$BUILD_MODEL" in
-        r76s_openwrt|x64_immwrt) ;;
+        r76s_openwrt|x64_openwrt) ;;
         *) docker_stack_sync_nftables_compat "$BUILD_DIR" "0" ;;
     esac
     fix_easytier_lua

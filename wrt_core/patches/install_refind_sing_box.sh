@@ -8,7 +8,7 @@ case "$MODEL" in
   r76s|r76s_openwrt|jdcloud_ipq60xx_immwrt|jdcloud_ipq60xx_libwrt|er1|er1_immwrt)
     REFIND_ARCH="arm64"
     ;;
-  x64|x64_immwrt|x86|x86_64)
+  x64|x64_openwrt|x86|x86_64)
     # Use universal amd64, not amd64v3.
     REFIND_ARCH="amd64"
     ;;

@@ -102,7 +102,7 @@ update_affinity_script() {
 
 setup_release_6_18() {
     case "$BUILD_MODEL" in
-        r76s_openwrt|x64_immwrt) ;;
+        r76s_openwrt|x64_openwrt) ;;
         *) return 0 ;;
     esac
     [ "$REPO_BRANCH" = "v25.12.5" ] || return 0
@@ -122,7 +122,7 @@ setup_release_6_18() {
             rm -rf "$BUILD_DIR/target/linux/rockchip"
             cp -a "$master_tree/target/linux/rockchip" "$BUILD_DIR/target/linux/rockchip"
             ;;
-        x64_immwrt)
+        x64_openwrt)
             git_retry -C "$master_tree" sparse-checkout add target/linux/x86
             rm -rf "$BUILD_DIR/target/linux/x86"
             cp -a "$master_tree/target/linux/x86" "$BUILD_DIR/target/linux/x86"
@@ -169,7 +169,7 @@ EOF
 
 setup_sbwml_fullcone() {
     case "$BUILD_MODEL" in
-        r76s_openwrt|x64_immwrt) ;;
+        r76s_openwrt|x64_openwrt) ;;
         *) return 0 ;;
     esac
 

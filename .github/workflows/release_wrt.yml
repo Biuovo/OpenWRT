@@ -13,7 +13,7 @@ on:
           - jdcloud_ipq60xx_immwrt
           - jdcloud_ipq60xx_libwrt
           - r76s_openwrt
-          - x64_immwrt
+          - x64_openwrt
 
 permissions: write-all
 

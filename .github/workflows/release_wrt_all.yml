@@ -27,7 +27,7 @@ jobs:
         model: [
           'jdcloud_ipq60xx_libwrt',
           'r76s_openwrt',
-          'x64_immwrt'
+          'x64_openwrt'
         ]
     runs-on: ${{ matrix.os }}
 

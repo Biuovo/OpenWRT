@@ -21,7 +21,7 @@ remove_unwanted_packages() {
             luci_packages+=("luci-app-adguardhome")
             packages_net+=("adguardhome")
             ;;
-        x64_immwrt)
+        x64_openwrt)
             # Keep official adguardhome and sing-box; sbwml LuCI packages depend on them.
             ;;
         *)
@@ -185,7 +185,7 @@ install_custom_feed() {
                 "sbwml/luci-app-openlist2|https://github.com/sbwml/luci-app-openlist2.git|main|openlist2 luci-app-openlist2"
             )
             ;;
-        x64_immwrt)
+        x64_openwrt)
             required_feed_dirs=(
                 luci-app-adguardhome luci-app-netspeedtest speedtest-cli
                 luci-app-store luci-lib-taskd luci-lib-xterm taskd
@@ -286,7 +286,7 @@ install_custom_feed() {
 
 verify_custom_feed_installed_paths() {
     case "$BUILD_MODEL" in
-        r76s_openwrt|x64_immwrt)
+        r76s_openwrt|x64_openwrt)
             return 0
             ;;
     esac

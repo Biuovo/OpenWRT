@@ -189,7 +189,7 @@ apply_config() {
 
     cat "$BASE_PATH/deconfig/proxy.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
 
-    if [[ "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_openwrt" || "$Dev" == "x64_immwrt" ]]; then
+    if [[ "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_openwrt" || "$Dev" == "x64_openwrt" ]]; then
         printf '%s\n' \
             'CONFIG_PACKAGE_luci-app-istorex=n' \
             'CONFIG_PACKAGE_luci-app-store=y' \
@@ -313,7 +313,7 @@ FIRMWARE_DIR="$BASE_PATH/../firmware"
 mkdir -p "$FIRMWARE_DIR"
 copy_firmware_artifacts() {
     case "$Dev" in
-        x64_immwrt)
+        x64_openwrt)
             find "$TARGET_DIR" -type f \( -name "*squashfs-combined-efi.img.gz" -o -name "*.manifest" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
             ;;
         r76s_openwrt)
