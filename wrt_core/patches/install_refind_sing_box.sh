@@ -5,7 +5,7 @@ BUILD_DIR=${1:?build dir required}
 MODEL=${2:?model required}
 
 case "$MODEL" in
-  r76s|r76s_immwrt|jdcloud_ipq60xx_immwrt|jdcloud_ipq60xx_libwrt|er1|er1_immwrt)
+  r76s|r76s_openwrt|jdcloud_ipq60xx_immwrt|jdcloud_ipq60xx_libwrt|er1|er1_immwrt)
     REFIND_ARCH="arm64"
     ;;
   x64|x64_immwrt|x86|x86_64)

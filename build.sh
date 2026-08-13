@@ -189,7 +189,7 @@ apply_config() {
 
     cat "$BASE_PATH/deconfig/proxy.config" >> "$BASE_PATH/../$BUILD_DIR/.config"
 
-    if [[ "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_immwrt" || "$Dev" == "x64_immwrt" ]]; then
+    if [[ "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_openwrt" || "$Dev" == "x64_immwrt" ]]; then
         printf '%s\n' \
             'CONFIG_PACKAGE_luci-app-istorex=n' \
             'CONFIG_PACKAGE_luci-app-store=y' \
@@ -233,7 +233,7 @@ apply_r76s_dockerd_defaults() {
     local defaults_dir="$BASE_PATH/../$BUILD_DIR/package/base-files/files/etc/uci-defaults"
 
     case "$Dev" in
-        r76s_immwrt)
+        r76s_openwrt)
             if [[ -f "$dockerd_source" ]]; then
                 install -Dm755 "$dockerd_source" "$defaults_dir/993_r76s_dockerd_no_iptables"
                 echo "Applied R76S dockerd no-iptables defaults."
@@ -260,7 +260,7 @@ fi
 
 "$BASE_PATH/update.sh" "$REPO_URL" "$REPO_BRANCH" "$BUILD_DIR" "$COMMIT_HASH" "$Dev"
 
-if [[ "$Dev" == "jdcloud_ipq60xx_immwrt" || "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_immwrt" ]]; then
+if [[ "$Dev" == "jdcloud_ipq60xx_immwrt" || "$Dev" == "jdcloud_ipq60xx_libwrt" || "$Dev" == "r76s_openwrt" ]]; then
     mkdir -p "$BASE_PATH/../$BUILD_DIR/package/base-files/files/etc/sysctl.d"
     printf '%s\n' \
         'net.ipv4.tcp_congestion_control=bbr' \
@@ -268,7 +268,7 @@ if [[ "$Dev" == "jdcloud_ipq60xx_immwrt" || "$Dev" == "jdcloud_ipq60xx_libwrt" |
         > "$BASE_PATH/../$BUILD_DIR/package/base-files/files/etc/sysctl.d/99-bbr-fq.conf"
 fi
 
-if [[ "$Dev" == "r76s_immwrt" ]]; then
+if [[ "$Dev" == "r76s_openwrt" ]]; then
     LED_MENU="$BASE_PATH/../$BUILD_DIR/feeds/luci/modules/luci-mod-system/root/usr/share/luci/menu.d/luci-mod-system.json"
     if [[ -f "$LED_MENU" ]]; then
         python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d.pop("admin/system/leds", None); open(p,"w").write(json.dumps(d, ensure_ascii=False, indent="\t")+"\n")' "$LED_MENU"
@@ -316,7 +316,7 @@ copy_firmware_artifacts() {
         x64_immwrt)
             find "$TARGET_DIR" -type f \( -name "*squashfs-combined-efi.img.gz" -o -name "*.manifest" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
             ;;
-        r76s_immwrt)
+        r76s_openwrt)
             find "$TARGET_DIR" -type f \( -name "*squashfs-*.img.gz" -o -name "*.manifest" \) -exec cp -f {} "$FIRMWARE_DIR/" \;
             ;;
         *)
