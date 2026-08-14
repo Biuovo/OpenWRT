@@ -1,6 +1,6 @@
 # OpenWrt 自用固件
 
-基于原 `openwrt_release` 仓库结构建立的独立仓库，不是 fork。
+基于原版`openwrt_release`构建，用到了sbwml大佬的优化。
 
 支持：
 
