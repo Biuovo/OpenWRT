@@ -441,7 +441,7 @@ if "fs.exec_direct('/sbin/cpuinfo')" not in s:
         "\t\t];\n\n\t\tvar table = E('table', { 'class': 'table' });",
         "\t\t];\n\n"
         "\t\tif (cpuusage) {\n"
-        "\t\t\tfields.push(_('CPU usage'), cpuusage);\n"
+        "\t\t\tfields.push('CPU 使用率', cpuusage);\n"
         "\t\t}\n\n"
         "\t\tvar table = E('table', { 'class': 'table' });"
     )

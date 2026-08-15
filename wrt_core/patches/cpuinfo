@@ -1,37 +1,41 @@
 #!/bin/sh
 
 # Keep the CPU description in LuCI's Architecture field, like ImmortalWrt.
-# Rockchip exposes current frequency under cpufreq policy directories rather
-# than per-CPU directories, so check both layouts.
 model="$(awk -F ': ' '/^(model name|Model|Processor)[[:space:]]*:/ { print $2; exit }' /proc/cpuinfo 2>/dev/null)"
 [ -n "$model" ] || model="ARMv8 Processor"
 
 cores="$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)"
 [ "$cores" -gt 0 ] 2>/dev/null || cores=1
 
-freqs=""
-for f in \
-	/sys/devices/system/cpu/cpufreq/policy*/cpuinfo_cur_freq \
-	/sys/devices/system/cpu/cpufreq/policy*/scaling_cur_freq \
-	/sys/devices/system/cpu/cpu[0-9]*/cpufreq/cpuinfo_cur_freq \
-	/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do
-	[ -r "$f" ] || continue
-	v="$(cat "$f" 2>/dev/null)"
-	case "$v" in
-		''|*[!0-9]*) continue ;;
-	esac
-	freqs="$freqs $v"
-done
+# Only show one representative frequency from each RK3588 cluster:
+# CPU0 is a little core and CPU4 is a big core.
+read_cpu_freq() {
+	cpu="$1"
+	for f in \
+		"/sys/devices/system/cpu/cpu${cpu}/cpufreq/scaling_cur_freq" \
+		"/sys/devices/system/cpu/cpu${cpu}/cpufreq/cpuinfo_cur_freq" \
+		"/sys/devices/system/cpu/cpufreq/policy${cpu}/scaling_cur_freq" \
+		"/sys/devices/system/cpu/cpufreq/policy${cpu}/cpuinfo_cur_freq"; do
+		[ -r "$f" ] || continue
+		v="$(cat "$f" 2>/dev/null)"
+		case "$v" in
+			''|*[!0-9]*) continue ;;
+		esac
+		printf '%dMHz' "$((v / 1000))"
+		return 0
+	done
+	return 1
+}
 
-freq_text=""
-if [ -n "$freqs" ]; then
-	freq_text="$(printf '%s\n' "$freqs" | tr ' ' '\n' | awk 'NF {print int($1/1000)}' | sort -n | uniq | awk '
-BEGIN { first=1 }
-{
-	if (!first) printf "/";
-	printf "%dMHz", $1;
-	first=0;
-}')"
+little_freq="$(read_cpu_freq 0)"
+big_freq="$(read_cpu_freq 4)"
+
+if [ -n "$little_freq" ] && [ -n "$big_freq" ]; then
+	freq_text="$little_freq/$big_freq"
+elif [ -n "$little_freq" ]; then
+	freq_text="$little_freq"
+else
+	freq_text="$big_freq"
 fi
 
 temp_text="$(/sbin/tempinfo 2>/dev/null | sed 's/^CPU:[[:space:]]*//')"
