@@ -398,13 +398,14 @@ update_nss_pbuf_performance() {
 
 set_build_signature() {
     local file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js"
+    local acl_file="$BUILD_DIR/feeds/luci/modules/luci-mod-status/root/usr/share/rpcd/acl.d/luci-mod-status-index.json"
 
-    # Install stable helpers for LuCI system overview. This is needed on official OpenWrt,
-    # where sbwml's autocore paths might not exist.
+    # Install stable helpers for LuCI system overview on every target.
     install -Dm755 "$BASE_PATH/patches/cpuinfo" "$BUILD_DIR/package/base-files/files/sbin/cpuinfo"
     install -Dm755 "$BASE_PATH/patches/tempinfo" "$BUILD_DIR/package/base-files/files/sbin/tempinfo"
+    install -Dm755 "$BASE_PATH/patches/cpuusage" "$BUILD_DIR/package/base-files/files/sbin/cpuusage"
 
-    if [ -d "$(dirname "$file")" ] && [ -f "$file" ]; then
+    if [ -f "$file" ]; then
         sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ Build by Biuovo')/g" "$file"
 
         python3 - "$file" <<'PY'
@@ -416,13 +417,21 @@ s = p.read_text()
 if "fs.exec_direct('/sbin/cpuinfo')" not in s:
     s = s.replace(
         "\t\t\tuci.load('system')\n\t\t]);",
-        "\t\t\tuci.load('system'),\n\t\t\tL.resolveDefault(fs.exec_direct('/sbin/cpuinfo'), ''),\n\t\t\tL.resolveDefault(fs.exec_direct('/sbin/tempinfo'), '')\n\t\t]);"
+        "\t\t\tuci.load('system'),\n"
+        "\t\t\tL.resolveDefault(fs.exec_direct('/sbin/cpuinfo'), ''),\n"
+        "\t\t\tL.resolveDefault(fs.exec_direct('/sbin/cpuusage'), '')\n\t\t]);"
     )
     s = re.sub(
         r"\n\s*unixtime\s*=\s*data\[3\];",
-        "\n\t\t\tunixtime    = data[3],\n\t\t\tcpuinfo     = (data[5] || '').trim(),\n\t\t\ttempinfo    = (data[6] || '').trim();",
+        "\n\t\t\tunixtime    = data[3],\n"
+        "\t\t\tcpuinfo     = (data[5] || '').trim(),\n"
+        "\t\t\tcpuusage    = (data[6] || '').trim();",
         s,
         count=1
+    )
+    s = s.replace(
+        "\t\t\t_('Model'),            boardinfo.model,",
+        "\t\t\t_('Model'),            String(boardinfo.model || boardinfo.system || '?').replace(/undefined$/, ''),"
     )
     s = s.replace(
         "\t\t\t_('Architecture'),     boardinfo.system,",
@@ -430,11 +439,48 @@ if "fs.exec_direct('/sbin/cpuinfo')" not in s:
     )
     s = s.replace(
         "\t\t];\n\n\t\tvar table = E('table', { 'class': 'table' });",
-        "\t\t];\n\n\t\tif (tempinfo) {\n\t\t\tfields.splice(6, 0, _('Temperature'));\n\t\t\tfields.splice(7, 0, tempinfo);\n\t\t}\n\n\t\tvar table = E('table', { 'class': 'table' });"
+        "\t\t];\n\n"
+        "\t\tif (cpuusage) {\n"
+        "\t\t\tfields.push(_('CPU usage'), cpuusage);\n"
+        "\t\t}\n\n"
+        "\t\tvar table = E('table', { 'class': 'table' });"
     )
 p.write_text(s)
 PY
     fi
+
+    # fs.exec_direct() needs explicit permission in the status page ACL.
+    if [ -f "$acl_file" ]; then
+        python3 - "$acl_file" <<'PY'
+import json
+import sys
+p = sys.argv[1]
+with open(p) as f:
+    data = json.load(f)
+group = data.setdefault('luci-mod-status-index', {}).setdefault('read', {})
+files = group.setdefault('file', {})
+files['/sbin/cpuinfo'] = ['exec']
+files['/sbin/cpuusage'] = ['exec']
+ubus = group.setdefault('ubus', {})
+methods = ubus.setdefault('file', [])
+if 'exec' not in methods:
+    methods.append('exec')
+with open(p, 'w') as f:
+    json.dump(data, f, ensure_ascii=False, indent='\t')
+    f.write('\n')
+PY
+    fi
+
+    # Force a new resource URL after sysupgrade to avoid stale overview JS.
+    local cache_script="$BUILD_DIR/package/base-files/files/etc/uci-defaults/989_luci_resource_version"
+    mkdir -p "$(dirname "$cache_script")"
+    cat > "$cache_script" <<EOF
+#!/bin/sh
+uci -q set luci.main.resource_version='Biuovo-$(date +%s)'
+uci -q commit luci
+exit 0
+EOF
+    chmod 755 "$cache_script"
 }
 
 update_nss_diag() {

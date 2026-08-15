@@ -34,8 +34,18 @@ BEGIN { first=1 }
 }')"
 fi
 
-if [ -n "$freq_text" ]; then
-	printf '%s x %s (%s)' "$model" "$cores" "$freq_text"
+temp_text="$(/sbin/tempinfo 2>/dev/null | sed 's/^CPU:[[:space:]]*//')"
+details=""
+if [ -n "$freq_text" ] && [ -n "$temp_text" ]; then
+	details="$freq_text, $temp_text"
+elif [ -n "$freq_text" ]; then
+	details="$freq_text"
+elif [ -n "$temp_text" ]; then
+	details="$temp_text"
+fi
+
+if [ -n "$details" ]; then
+	printf '%s x %s (%s)' "$model" "$cores" "$details"
 else
 	printf '%s x %s' "$model" "$cores"
 fi

@@ -1,19 +1,23 @@
 #!/bin/sh
-# Copyright (C) 2024 YumesomeZakura <1552037053@qq.com>
 
-cpu_usage=$(top -bn1 | head -n2 | awk -F'[ %]+' 'NR==2{print $2}')
-combined_output=""
+# Return a stable CPU usage value for the LuCI system overview.
+usage="$(top -bn1 2>/dev/null | awk '
+/^CPU:/ {
+	for (i = 1; i <= NF; i++) {
+		if ($(i + 1) == "idle") {
+			gsub(/%/, "", $i)
+			printf "%d%%", 100 - $i
+			exit
+		}
+	}
+}')"
 
-if [ -e "/sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi" ]; then
-    nss_avg_utilization=$(awk 'NR==6 {print $2}' /sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi)
-    combined_output="${combined_output}${nss_avg_utilization}"
-fi
+[ -n "$usage" ] || usage="$(awk '
+NR == 1 {
+	total = 0
+	for (i = 2; i <= NF; i++) total += $i
+	busy = total - $5 - $6
+	if (total > 0) printf "%d%%", busy * 100 / total
+}' /proc/stat 2>/dev/null)"
 
-if [ -r "/sys/kernel/debug/ecm/ecm_db/connection_count_simple" ]; then
-    connection_count=$(cat /sys/kernel/debug/ecm/ecm_db/connection_count_simple)
-    echo -n "CPU: ${cpu_usage}% HWE: ${combined_output} ECM: ${connection_count}"
-elif [ -n "$combined_output" ]; then
-    echo -n "CPU: ${cpu_usage}% HWE: ${combined_output}"
-else
-    echo -n "CPU: ${cpu_usage}%"
-fi
+printf '%s' "${usage:-0%}"
