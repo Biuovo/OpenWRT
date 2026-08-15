@@ -88,9 +88,6 @@ main() {
     esac
     set_nginx_default_config
     update_uwsgi_limit_as
-    update_argon
-    update_argon_config
-    update_design
     update_aurora
     update_aurora_config
     update_nginx_ubus_module

@@ -289,6 +289,52 @@ cd "$BASE_PATH/../$BUILD_DIR"
 "$BASE_PATH/patches/install_refind_sing_box.sh" "$BASE_PATH/../$BUILD_DIR" "$Dev"
 make defconfig
 
+# Fail early before downloading/compiling when an OpenWrt 25.12 profile has
+# fallen back to OPKG, an incompatible Lua-only theme, or untranslated UI
+# patches. This avoids publishing another unusable image.
+case "$Dev" in
+    r76s_openwrt|x64_openwrt)
+        grep -q '^CONFIG_USE_APK=y$' .config || {
+            echo "Error: $Dev must use APK." >&2
+            exit 1
+        }
+        grep -q '^CONFIG_PACKAGE_apk-mbedtls=y$' .config || {
+            echo "Error: apk-mbedtls was not selected." >&2
+            exit 1
+        }
+        grep -q '^CONFIG_PACKAGE_luci-app-package-manager=y$' .config || {
+            echo "Error: LuCI APK package manager was not selected." >&2
+            exit 1
+        }
+        if grep -q '^CONFIG_PACKAGE_opkg=y$' .config; then
+            echo "Error: OPKG is still selected for $Dev." >&2
+            exit 1
+        fi
+        for theme in aurora bootstrap; do
+            grep -q "^CONFIG_PACKAGE_luci-theme-${theme}=y$" .config || {
+                echo "Error: luci-theme-$theme is not selected." >&2
+                exit 1
+            }
+            test -f "feeds/luci/themes/luci-theme-${theme}/ucode/template/themes/${theme}/sysauth.ut" || {
+                echo "Error: luci-theme-$theme has no ucode login template." >&2
+                exit 1
+            }
+        done
+        if grep -qE '^CONFIG_PACKAGE_luci-theme-(argon|design)=y$' .config; then
+            echo "Error: an incompatible Lua-only LuCI theme is selected." >&2
+            exit 1
+        fi
+        grep -q 'CPU 使用率' feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js || {
+            echo "Error: CPU usage label is not localized." >&2
+            exit 1
+        }
+        grep -q '全锥形 NAT' feeds/luci/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js || {
+            echo "Error: FullCone NAT label is not localized." >&2
+            exit 1
+        }
+        ;;
+esac
+
 if grep -qE "^CONFIG_TARGET_x86_64=y" "$CONFIG_FILE"; then
     DISTFEEDS_PATH="$BASE_PATH/../$BUILD_DIR/package/emortal/default-settings/files/99-distfeeds.conf"
     if [ -d "${DISTFEEDS_PATH%/*}" ] && [ -f "$DISTFEEDS_PATH" ]; then

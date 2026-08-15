@@ -200,6 +200,26 @@ setup_sbwml_fullcone() {
     (cd "$BUILD_DIR/feeds/luci" && patch -p1 < "$luci_patch" && patch -p1 < "$luci6_patch")
     sed -i "/o.value('2', _(\"Broadcom Fullcone nat\")/d" "$BUILD_DIR/feeds/luci/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js"
 
+    # FullCone strings are added by an external patch and have no zh_Hans
+    # translations in luci-app-firewall. Use explicit Chinese labels.
+    local zones_js="$BUILD_DIR/feeds/luci/applications/luci-app-firewall/htdocs/luci-static/resources/view/firewall/zones.js"
+    if [ -f "$zones_js" ]; then
+        python3 - "$zones_js" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+for old, new in {
+    '_("Full Cone NAT")': '"全锥形 NAT"',
+    '_("Full Cone NAT6")': '"全锥形 NAT6"',
+    '_("Nftables Fullcone nat")': '"Nftables 全锥形 NAT"',
+    "_('Nftables based fullcone nat scheme.')": "'基于 Nftables 的全锥形 NAT 方案。'",
+}.items():
+    s = s.replace(old, new)
+p.write_text(s)
+PY
+    fi
+
     if [ -f "$luci_features" ] && ! grep -q '^[[:space:]]*fullcone:' "$luci_features"; then
         sed -i "/firewall4:/a\\\t\t\t\tfullcone:   access('\/sys\/module\/nft_fullcone') == true," "$luci_features"
     fi
@@ -366,6 +386,14 @@ apply_passwall_tweaks() {
 }
 
 install_opkg_distfeeds() {
+    # OpenWrt 25.12 profiles use APK and must keep their generated official
+    # packages.adb repositories. This compatibility feed is only for the
+    # ImmortalWrt-based ER1 profile.
+    case "$BUILD_MODEL" in
+        jdcloud_ipq60xx_immwrt) ;;
+        *) return 0 ;;
+    esac
+
     local emortal_def_dir="$BUILD_DIR/package/emortal/default-settings"
     local distfeeds_conf="$emortal_def_dir/files/99-distfeeds.conf"
 
@@ -667,6 +695,10 @@ fix_openssl_ktls() {
 }
 
 fix_opkg_check() {
+    case "$BUILD_MODEL" in
+        r76s_openwrt|x64_openwrt) return 0 ;;
+    esac
+
     local patch_file="$BASE_PATH/patches/001-fix-provides-version-parsing.patch"
     local opkg_dir="$BUILD_DIR/package/system/opkg"
     if [ -f "$patch_file" ]; then
