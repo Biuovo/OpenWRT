@@ -719,6 +719,27 @@ update_argon_config() {
     echo "sbwml luci-app-argon-config 更新完成"
 }
 
+update_design() {
+    local repo_url="https://github.com/0x676e67/luci-theme-design.git"
+    local dst_theme_path="$BUILD_DIR/feeds/luci/themes/luci-theme-design"
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    echo "正在更新 design 主题..."
+
+    if ! git_retry clone --depth 1 "$repo_url" "$tmp_dir"; then
+        echo "错误：从 $repo_url 克隆 design 主题仓库失败" >&2
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
+
+    rm -rf "$dst_theme_path"
+    rm -rf "$tmp_dir/.git"
+    mv "$tmp_dir" "$dst_theme_path"
+
+    echo "luci-theme-design 更新完成"
+}
+
 update_aurora() {
     local repo_url="https://github.com/eamonxg/luci-theme-aurora.git"
     local dst_theme_path="$BUILD_DIR/feeds/luci/themes/luci-theme-aurora"
