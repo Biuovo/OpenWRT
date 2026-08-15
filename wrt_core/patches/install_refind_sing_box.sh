@@ -43,11 +43,16 @@ asset=next((a for a in rel.get('assets', []) if a['name'].endswith(want)), None)
 if not asset:
     names=', '.join(a['name'] for a in rel.get('assets', []))
     raise SystemExit(f'No asset matching {want} in {tag}; assets: {names}')
-# OpenWrt package versions must be parser-friendly. Use tag version when it is semver-like,
-# otherwise fall back to release publish date for moving tags like ebpf-latest-reF1nd-urltest-core.
-m=re.search(r'v?(\d+(?:\.\d+)+(?:[-~_][0-9A-Za-z.]+)?)', tag)
+# APK v3 only accepts Alpine version syntax. In particular, SemVer's
+# "-beta.N" must be written as "_betaN"; a bare hyphen is
+# reserved for the final "-rN" package revision added by OpenWrt.
+m=re.search(r'v?(\d+(?:\.\d+)+(?:[-_][0-9A-Za-z.]+)?)', tag)
 if m:
-    version=m.group(1).replace('_', '~')
+    version=m.group(1).replace('-', '_').lower()
+    version=re.sub(r'_(alpha|beta|pre|rc|cvs|svn|git|hg|p)\.(\d+)$', r'_\1\2', version)
+    valid=r'\d+(?:\.\d+)*(?:[a-z])?(?:_(?:alpha|beta|pre|rc|cvs|svn|git|hg|p)\d*)*'
+    if not re.fullmatch(valid, version):
+        version=(rel.get('published_at') or rel.get('created_at') or '1970-01-01')[:10].replace('-', '.')
 else:
     version=(rel.get('published_at') or rel.get('created_at') or '1970-01-01')[:10].replace('-', '.')
 print(f"TAG='{tag}'")
