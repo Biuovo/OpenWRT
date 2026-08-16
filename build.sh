@@ -310,6 +310,10 @@ case "$Dev" in
             echo "Error: OPKG is still selected for $Dev." >&2
             exit 1
         fi
+        if grep -qE '^CONFIG_FEED_(custom_feed|luci_app_bandix|openwrt_bandix)=[ym]$' .config; then
+            echo "Error: a build-only feed would create a nonexistent OpenWrt APK repository." >&2
+            exit 1
+        fi
         for theme in aurora bootstrap; do
             grep -q "^CONFIG_PACKAGE_luci-theme-${theme}=y$" .config || {
                 echo "Error: luci-theme-$theme is not selected." >&2
